@@ -100,7 +100,8 @@ func createTables(db *sql.DB) error {
 		body TEXT,
 		position REAL NOT NULL,
 		FOREIGN KEY (column_id) REFERENCES columns(id) ON DELETE CASCADE
-	);`
+	);
+	`
 
 	_, err := db.Exec(query)
 	return err

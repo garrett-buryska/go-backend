@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"go-backend/internal/models"
 	"go-backend/internal/utils"
 	"net/http"
@@ -33,8 +34,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. Save to the database
-	_, err = h.UserModel.Insert(username, string(hashedPassword), email)
-	if err != nil {
+	if _, err = h.UserModel.Insert(username, string(hashedPassword), email); err != nil {
 		http.Error(w, "User already exists", http.StatusConflict)
 		return
 	}
@@ -162,12 +162,13 @@ func (h *UserHandler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		csrfToken := r.Header.Get("X-CSRF-Token")
 
 		// 3. Verify tokens against the database
-		if _, err := h.UserModel.GetBySession(sessionCookie.Value, csrfToken); err != nil {
+		user, err := h.UserModel.GetBySession(sessionCookie.Value, csrfToken)
+		if err != nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		// 4. proceed!
-		next.ServeHTTP(w, r)
+		// 4. proceed! with user_id context!
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "user_id_key", user.ID)))
 	}
 }

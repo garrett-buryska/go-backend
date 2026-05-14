@@ -17,15 +17,49 @@ func main() {
 
 	userModel := &models.UserModel{DB: db}
 
-	h := &handlers.UserHandler{
+	uh := &handlers.UserHandler{
 		UserModel: userModel,
+	}
+
+	boardModel := &models.BoardModel{DB: db}
+
+	bh := &handlers.BoardHandler{
+		BoardModel: boardModel,
+	}
+
+	columnModel := &models.ColumnModel{DB: db}
+
+	ch := &handlers.ColumnHandler{
+		ColumnModel: columnModel,
+	}
+
+	cardModel := &models.CardModel{DB: db}
+
+	cah := &handlers.CardHandler{
+		CardModel: cardModel,
 	}
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /register", h.Register)
-	mux.HandleFunc("POST /login", h.Login)
-	mux.HandleFunc("POST /logout", h.Logout) // FOR TESTING obv
+	// AUTHS
+	mux.HandleFunc("POST /register", uh.Register) // REGISTER
+	mux.HandleFunc("POST /login", uh.Login)       // LOGIN
+	mux.HandleFunc("POST /logout", uh.Logout)     // LOGOUT
+
+	// PROTECTED
+	// board
+	mux.HandleFunc("GET /{boardID}", uh.RequireAuth(bh.GetBoard))  // FETCH board (and cards and columns)
+	mux.HandleFunc("POST /", uh.RequireAuth(bh.Create))            // CREATE board
+	mux.HandleFunc("PUT /{boardID}", uh.RequireAuth(bh.Update))    // UPDATE board
+	mux.HandleFunc("DELETE /{boardID}", uh.RequireAuth(bh.Delete)) // DELETE board
+	// column
+	mux.HandleFunc("POST /{boardID}/", uh.RequireAuth(ch.Create))             // CREATE column
+	mux.HandleFunc("PUT /{boardID}/{columnID}", uh.RequireAuth(ch.Update))    // UPDATE column
+	mux.HandleFunc("DELETE /{boardID}/{columnID}", uh.RequireAuth(ch.Delete)) // DELETE column
+	// card
+	mux.HandleFunc("POST /{boardID}/{columnID}/", uh.RequireAuth(cah.Create))           // CREATE card
+	mux.HandleFunc("PUT /{boardID}/{columnID}/{cardID}", uh.RequireAuth(cah.Update))    // UPDATE card
+	mux.HandleFunc("DELETE /{boardID}/{columnID}/{cardID}", uh.RequireAuth(cah.Delete)) // DELETE card
 
 	log.Println("Server starting on :8080")
 	err = http.ListenAndServe(":8080", mux)

@@ -5,17 +5,14 @@ import (
 	"errors"
 )
 
-// ErrNoRecord is a custom error so your HTTP handlers know when a user wasn't found
-var ErrNoRecord = errors.New("models: no matching record found")
-
 // User represents the data structure of our database row
 type User struct {
-	ID             int            `json:"id"`
-	Username       string         `json:"username"`
-	HashedPassword string         `json:"-"` // The "-" prevents the password from EVER leaking in JSON
-	Email          string         `json:"email"`
-	SessionToken   sql.NullString `json:"-"` // sql.NullString handles NULL values in the DB (like when logged out)
-	CSRFToken      sql.NullString `json:"-"`
+	ID             int    `json:"id"`
+	Username       string `json:"username"`
+	HashedPassword string `json:"-"` // The "-" prevents the password from EVER leaking in JSON
+	Email          string `json:"email"`
+	SessionToken   string `json:"-"` // sql.NullString handles NULL values in the DB (like when logged out)
+	CSRFToken      string `json:"-"`
 }
 
 // UserModel wraps the database connection pool
@@ -42,7 +39,7 @@ func (m *UserModel) GetByUsername(username string) (*User, error) {
 	err := m.DB.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.HashedPassword)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNoRecord
+			return nil, errors.New("models: no matching record found")
 		}
 		return nil, err
 	}
@@ -64,7 +61,7 @@ func (m *UserModel) GetBySession(sessionToken string, csrfToken string) (*User, 
 	err := m.DB.QueryRow(query, sessionToken, csrfToken).Scan(&user.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNoRecord
+			return nil, errors.New("models: no matching record found")
 		}
 		return nil, err
 	}
