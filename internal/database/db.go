@@ -76,6 +76,30 @@ func createTables(db *sql.DB) error {
 		email TEXT NOT NULL,
 		session_token TEXT UNIQUE,
 		csrf_token TEXT
+	);
+	
+	CREATE TABLE IF NOT EXISTS boards (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		title TEXT NOT NULL,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	);
+	
+	CREATE TABLE IF NOT EXISTS columns (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		board_id INTEGER NOT NULL,
+		title TEXT NOT NULL,
+		position REAL NOT NULL,
+		FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+	);
+	
+	CREATE TABLE IF NOT EXISTS cards (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		column_id INTEGER NOT NULL,
+		title TEXT NOT NULL,
+		body TEXT,
+		position REAL NOT NULL,
+		FOREIGN KEY (column_id) REFERENCES columns(id) ON DELETE CASCADE
 	);`
 
 	_, err := db.Exec(query)
