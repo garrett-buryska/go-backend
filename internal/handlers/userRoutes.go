@@ -17,6 +17,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// 1. Extract values
 	username := r.FormValue("username")
 	password := r.FormValue("password")
+	email := r.FormValue("email")
 
 	// 2. Validate password
 	if len(username) < 8 || len(password) < 8 {
@@ -32,7 +33,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. Save to the database
-	_, err = h.UserModel.Insert(username, string(hashedPassword))
+	_, err = h.UserModel.Insert(username, string(hashedPassword), email)
 	if err != nil {
 		http.Error(w, "User already exists", http.StatusConflict)
 		return

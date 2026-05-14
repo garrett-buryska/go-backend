@@ -13,6 +13,7 @@ type User struct {
 	ID             int            `json:"id"`
 	Username       string         `json:"username"`
 	HashedPassword string         `json:"-"` // The "-" prevents the password from EVER leaking in JSON
+	Email          string         `json:"email"`
 	SessionToken   sql.NullString `json:"-"` // sql.NullString handles NULL values in the DB (like when logged out)
 	CSRFToken      sql.NullString `json:"-"`
 }
@@ -22,11 +23,11 @@ type UserModel struct {
 	DB *sql.DB
 }
 
-func (m *UserModel) Insert(username, hashedPassword string) (int, error) {
-	query := `INSERT INTO users (username, hashed_password) VALUES (?, ?) RETURNING id;`
+func (m *UserModel) Insert(username, hashedPassword string, email string) (int, error) {
+	query := `INSERT INTO users (username, hashed_password, email) VALUES (?, ?, ?) RETURNING id;`
 
 	var id int
-	err := m.DB.QueryRow(query, username, hashedPassword).Scan(&id)
+	err := m.DB.QueryRow(query, username, hashedPassword, email).Scan(&id)
 	if err != nil {
 		return 0, err
 	}

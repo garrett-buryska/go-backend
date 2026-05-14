@@ -73,6 +73,7 @@ func createTables(db *sql.DB) error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		username TEXT NOT NULL UNIQUE,
 		hashed_password TEXT NOT NULL,
+		email TEXT NOT NULL,
 		session_token TEXT UNIQUE,
 		csrf_token TEXT
 	);`
