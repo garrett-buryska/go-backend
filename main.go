@@ -25,7 +25,7 @@ func main() {
 
 	mux.HandleFunc("POST /register", h.Register)
 	mux.HandleFunc("POST /login", h.Login)
-	mux.HandleFunc("POST /logout", h.RequireAuth(h.Logout)) // FOR TESTING obv
+	mux.HandleFunc("POST /logout", h.Logout) // FOR TESTING obv
 
 	log.Println("Server starting on :8080")
 	err = http.ListenAndServe(":8080", mux)
