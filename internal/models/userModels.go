@@ -54,10 +54,10 @@ func (m *UserModel) UpdateSession(userID int, sessionToken *string, csrfToken *s
 }
 
 func (m *UserModel) GetBySession(sessionToken string, csrfToken string) (*User, error) {
-	query := `SELECT id FROM users WHERE session_token = ? AND csrf_token = ?`
+	query := `SELECT id, username FROM users WHERE session_token = ? AND csrf_token = ?`
 
 	var user User
-	err := m.DB.QueryRow(query, sessionToken, csrfToken).Scan(&user.ID)
+	err := m.DB.QueryRow(query, sessionToken, csrfToken).Scan(&user.ID, &user.Username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("models: no matching record found")

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"go-backend/internal/models"
 	"go-backend/internal/utils"
-	"log"
 	"net/http"
 	"time"
 
@@ -185,7 +184,6 @@ func (h *UserHandler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		// 1. Get session token from cookie
 		sessionCookie, err := r.Cookie("session_token")
 		if err != nil {
-			log.Printf("Auth Error: Missing or invalid session cookie: %v", err)
 			utils.SendJSONError(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -196,7 +194,6 @@ func (h *UserHandler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		// 3. Verify tokens against the database
 		user, err := h.UserModel.GetBySession(sessionCookie.Value, csrfToken)
 		if err != nil {
-			log.Printf("Auth Error: Session validation failed: %v", err)
 			utils.SendJSONError(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -204,4 +201,27 @@ func (h *UserHandler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		// 4. proceed! with user_id context!
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), "user_id_key", user.ID)))
 	}
+}
+
+func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
+	// 1. Get sessionToken
+	sessionToken, err := r.Cookie("session_token")
+	if err != nil || sessionToken.Value == "" {
+		utils.SendJSONError(w, "Not logged in1", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Get csrf
+	csrfToken := r.Header.Get("X-CSRF-Token")
+
+	// 3. Get user
+	user, err := h.UserModel.GetBySession(sessionToken.Value, csrfToken)
+	if err != nil {
+		utils.SendJSONError(w, "Not logged in2", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"username": user.Username})
 }

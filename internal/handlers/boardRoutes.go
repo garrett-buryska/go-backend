@@ -146,3 +146,18 @@ func (h *BoardHandler) GetBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+// Add this anywhere in the file
+func (h *BoardHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("user_id_key").(int)
+
+	boards, err := h.BoardModel.GetAllForUser(userID)
+	if err != nil {
+		utils.SendJSONError(w, "Failed to fetch boards", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(boards)
+}

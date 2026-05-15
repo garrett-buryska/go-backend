@@ -82,8 +82,10 @@ func main() {
 	mux.HandleFunc("POST /api/auth/register", uh.Register)
 	mux.HandleFunc("POST /api/auth/login", uh.Login)
 	mux.HandleFunc("POST /api/auth/logout", uh.Logout)
+	mux.HandleFunc("GET /api/auth/me", uh.Me)
 
 	// BOARDS
+	mux.HandleFunc("GET /api/boards", uh.RequireAuth(bh.GetAll))
 	mux.HandleFunc("GET /api/boards/{boardID}", uh.RequireAuth(bh.GetBoard))
 	mux.HandleFunc("POST /api/boards", uh.RequireAuth(bh.Create))
 	mux.HandleFunc("PUT /api/boards/{boardID}", uh.RequireAuth(bh.Update))

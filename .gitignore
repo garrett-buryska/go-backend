@@ -1,0 +1,10 @@
+# The compiled binary
+go-backend
+
+# The entire data directory (easier than listing files individually)
+data/
+
+# Or, if you want to be specific about SQLite files:
+*.db
+*.db-wal
+*.db-shm

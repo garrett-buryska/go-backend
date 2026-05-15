@@ -43,17 +43,17 @@ func (m *CardModel) Create(userID, columnID int, title string, position float64)
 func (m *CardModel) Update(userID, columnID, cardID int, title, body string, position float64) error {
 	query := `
 		UPDATE cards
-		SET title = ?, position = ?, body = ?
+		SET title = ?, position = ?, body = ?, column_id = ? 
 		WHERE id = ? 
 			AND column_id IN (
 				SELECT columns.id 
 				FROM columns
 				INNER JOIN boards ON columns.board_id = boards.id
-				WHERE boards.user_id = ? AND columns.id = ?
+				WHERE boards.user_id = ?
 			);
 	`
 
-	result, err := m.DB.Exec(query, title, position, body, cardID, userID, columnID)
+	result, err := m.DB.Exec(query, title, position, body, columnID, cardID, userID)
 	if err != nil {
 		return err
 	}

@@ -117,3 +117,29 @@ func (m *BoardModel) GetBoard(boardID, userID int) (*Board, error) {
 
 	return &board, nil
 }
+
+// Add this right below your GetBoard method
+func (m *BoardModel) GetAllForUser(userID int) ([]Board, error) {
+	query := `SELECT id, title FROM boards WHERE user_id = ? ORDER BY id DESC`
+
+	rows, err := m.DB.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var boards []Board
+	for rows.Next() {
+		var b Board
+		if err := rows.Scan(&b.ID, &b.Title); err != nil {
+			return nil, err
+		}
+		boards = append(boards, b)
+	}
+
+	// Return an empty array instead of nil so React gets [] instead of null
+	if boards == nil {
+		boards = []Board{}
+	}
+	return boards, nil
+}
