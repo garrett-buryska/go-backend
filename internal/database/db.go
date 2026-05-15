@@ -53,7 +53,6 @@ func createTables(db *sql.DB) error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		username TEXT NOT NULL UNIQUE,
 		hashed_password TEXT NOT NULL,
-		email TEXT NOT NULL,
 		session_token TEXT UNIQUE,
 		csrf_token TEXT
 	);
@@ -77,7 +76,7 @@ func createTables(db *sql.DB) error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		column_id INTEGER NOT NULL,
 		title TEXT NOT NULL,
-		body TEXT,
+		body TEXT NOT NULL,
 		position REAL NOT NULL,
 		FOREIGN KEY (column_id) REFERENCES columns(id) ON DELETE CASCADE
 	);

@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"go-backend/internal/models"
 	"go-backend/internal/utils"
+	"log"
 	"net/http"
 	"time"
 
@@ -14,82 +16,100 @@ type UserHandler struct {
 	UserModel *models.UserModel
 }
 
+// Create structs to handle the incoming JSON payloads
+type RegisterRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	// 1. Extract values
-	username := r.FormValue("username")
-	password := r.FormValue("password")
-	email := r.FormValue("email")
+	// 1. Extract values from JSON body
+	var req RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendJSONError(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
 
 	// 2. Validate password
-	if len(username) < 8 || len(password) < 8 {
-		http.Error(w, "Username and password must be at least 8 characters", http.StatusNotAcceptable)
+	if len(req.Username) < 8 || len(req.Password) < 8 {
+		utils.SendJSONError(w, "Username and password must be at least 8 characters", http.StatusNotAcceptable)
 		return
 	}
 
 	// 3. Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
 	if err != nil {
-		http.Error(w, "Server error hashing password", http.StatusInternalServerError)
+		utils.SendJSONError(w, "Server error hashing password", http.StatusInternalServerError)
 		return
 	}
 
 	// 4. Save to the database
-	if _, err = h.UserModel.Insert(username, string(hashedPassword), email); err != nil {
-		http.Error(w, "User already exists", http.StatusConflict)
+	if _, err = h.UserModel.Insert(req.Username, string(hashedPassword)); err != nil {
+		utils.SendJSONError(w, "User already exists", http.StatusConflict)
 		return
 	}
 
 	// 5. Share the NEWS!
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("User registered successfully!"))
+	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully!"})
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
-	// 1. Extract values
-	username := r.FormValue("username")
-	password := r.FormValue("password")
+	// 1. Extract values from JSON
+	var req LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendJSONError(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
 
-	// 2. Get by user by Username
-	user, err := h.UserModel.GetByUsername(username)
+	// 2. Get user by Username
+	user, err := h.UserModel.GetByUsername(req.Username)
 	if err != nil {
-		http.Error(w, "Invalid username/password", http.StatusUnauthorized)
+		utils.SendJSONError(w, "Invalid username/password", http.StatusUnauthorized)
 		return
 	}
 
 	// 3. Validate Password
-	err = bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password))
 	if err != nil {
-		http.Error(w, "Invalid username/password", http.StatusUnauthorized)
+		utils.SendJSONError(w, "Invalid username/password", http.StatusUnauthorized)
 		return
 	}
 
 	// 4. Generate SessionToken
 	sessionToken, err := utils.GenerateToken(32)
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		utils.SendJSONError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	// 5. Generate CSRFToken
 	csrfToken, err := utils.GenerateToken(32)
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		utils.SendJSONError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	// 6. Set tokens
 	err = h.UserModel.UpdateSession(user.ID, &sessionToken, &csrfToken)
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		utils.SendJSONError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// 7. Set cookies
+	// 7. Set cookies (HttpOnly keeps session safe from XSS, CSRF cookie is read by React)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    sessionToken,
 		Expires:  time.Now().Add(24 * time.Hour),
 		HttpOnly: true,
+		Path:     "/",
 	})
 
 	http.SetCookie(w, &http.Cookie{
@@ -97,18 +117,26 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Value:    csrfToken,
 		Expires:  time.Now().Add(24 * time.Hour),
 		HttpOnly: false,
+		Path:     "/",
 	})
 
 	// 8. Share the NEWS!
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Logged in successfully!"))
+
+	// Returning the username/ID is helpful for React to update its UI state
+	response := map[string]any{
+		"message":  "Logged in successfully!",
+		"username": user.Username,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// 1. Get sessionToken
 	sessionToken, err := r.Cookie("session_token")
 	if err != nil || sessionToken.Value == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.SendJSONError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -118,14 +146,14 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// 3. Get user
 	user, err := h.UserModel.GetBySession(sessionToken.Value, csrfToken)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.SendJSONError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	// 4. Purge tokens
 	err = h.UserModel.UpdateSession(user.ID, nil, nil)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		utils.SendJSONError(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
@@ -135,6 +163,7 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour),
 		HttpOnly: true,
+		Path:     "/",
 	})
 
 	http.SetCookie(w, &http.Cookie{
@@ -142,11 +171,13 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour),
 		HttpOnly: false,
+		Path:     "/",
 	})
 
 	// 6. Share the NEWS!
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Logged out successfully!"))
+	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out successfully!"})
 }
 
 func (h *UserHandler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -154,7 +185,8 @@ func (h *UserHandler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		// 1. Get session token from cookie
 		sessionCookie, err := r.Cookie("session_token")
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			log.Printf("Auth Error: Missing or invalid session cookie: %v", err)
+			utils.SendJSONError(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
@@ -164,7 +196,8 @@ func (h *UserHandler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		// 3. Verify tokens against the database
 		user, err := h.UserModel.GetBySession(sessionCookie.Value, csrfToken)
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			log.Printf("Auth Error: Session validation failed: %v", err)
+			utils.SendJSONError(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 

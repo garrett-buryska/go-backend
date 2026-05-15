@@ -18,14 +18,6 @@ type ColumnModel struct {
 }
 
 func (m *ColumnModel) Create(userID, boardID int, title string, position float64) (int, error) {
-	authQuery := `SELECT 1 FROM boards WHERE user_id = ? AND id = ?;`
-
-	var exists int
-	err := m.DB.QueryRow(authQuery, userID, boardID).Scan(&exists)
-	if err != nil {
-		return 0, err
-	}
-
 	query := `
 		INSERT INTO columns (board_id, title, position) 
 		SELECT ?, ?, ? 
@@ -39,8 +31,7 @@ func (m *ColumnModel) Create(userID, boardID int, title string, position float64
 	`
 
 	var id int
-	err = m.DB.QueryRow(query, boardID, title, position, userID, boardID).Scan(&id)
-	if err != nil {
+	if err := m.DB.QueryRow(query, boardID, title, position, userID, boardID).Scan(&id); err != nil {
 		return 0, err
 	}
 

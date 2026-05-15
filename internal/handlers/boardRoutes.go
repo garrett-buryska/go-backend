@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"go-backend/internal/models"
+	"go-backend/internal/utils"
 	"net/http"
 	"strconv"
 )
@@ -12,77 +12,114 @@ type BoardHandler struct {
 	BoardModel *models.BoardModel
 }
 
+type BoardRequest struct {
+	Title string `json:"title"`
+}
+
 func (h *BoardHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// 1. get userID from context and title from form
 	userID := r.Context().Value("user_id_key").(int)
-	title := r.FormValue("title")
+
+	var request BoardRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		utils.SendJSONError(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
 
 	// 2. validate title
-	if title == "" {
-		http.Error(w, "Invalid title", http.StatusBadRequest)
+	if request.Title == "" {
+		utils.SendJSONError(w, "Title is required", http.StatusBadRequest)
 		return
 	}
 
 	// 3. insert into table
-	boardID, err := h.BoardModel.Create(userID, title)
+	boardID, err := h.BoardModel.Create(userID, request.Title)
 	if err != nil {
-		http.Error(w, "Invalid board entry", http.StatusBadRequest)
+		utils.SendJSONError(w, "Failed to create board", http.StatusInternalServerError)
 		return
 	}
 
 	// share the NEWS!
-	w.Header().Set("Location", fmt.Sprintf("/%d", boardID))
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Board created successfully!"))
+
+	response := map[string]any{
+		"message": "Board created",
+		"board": map[string]any{
+			"id":    boardID,
+			"title": request.Title,
+		},
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *BoardHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// 1. get userID from context and title from form
 	userID := r.Context().Value("user_id_key").(int)
-	title := r.FormValue("title")
 
 	boardID, err := strconv.Atoi(r.PathValue("boardID"))
 	if err != nil {
-		http.Error(w, "Improper Board ID", http.StatusBadRequest)
+		utils.SendJSONError(w, "Invalid Board ID", http.StatusBadRequest)
+		return
+	}
+
+	var request BoardRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		utils.SendJSONError(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
 
 	// 2. validate title
-	if title == "" {
-		http.Error(w, "Invalid title", http.StatusBadRequest)
+	if request.Title == "" {
+		utils.SendJSONError(w, "Title is required", http.StatusBadRequest)
 		return
 	}
 
 	// 3. insert into table
-	if err := h.BoardModel.Update(userID, boardID, title); err != nil {
-		http.Error(w, "Invalid board entry", http.StatusBadRequest)
+	if err := h.BoardModel.Update(userID, boardID, request.Title); err != nil {
+		utils.SendJSONError(w, "Failed to update board", http.StatusInternalServerError)
 		return
 	}
 
-	// share the NEWS!
-	w.Header().Set("Location", fmt.Sprintf("/%d", boardID))
-	w.WriteHeader(http.StatusAccepted)
-	w.Write([]byte("Board created successfully!"))
+	// 4. Respond with JSON so React can update its state
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]any{
+		"message": "Board updated",
+		"board": map[string]any{
+			"id":    boardID,
+			"title": request.Title,
+		},
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *BoardHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// 1. get required variables
 	userID := r.Context().Value("user_id_key").(int)
+
 	boardID, err := strconv.Atoi(r.PathValue("boardID"))
 	if err != nil {
-		http.Error(w, "Improper Board ID", http.StatusBadRequest)
+		utils.SendJSONError(w, "Invalid Board ID", http.StatusBadRequest)
 		return
 	}
 
 	// 2. delete from table
 	if err := h.BoardModel.Delete(userID, boardID); err != nil {
-		http.Error(w, "Invalid board delete request", http.StatusBadRequest)
+		utils.SendJSONError(w, "Failed to delete board", http.StatusInternalServerError)
 		return
 	}
 
-	// share the NEWS!
-	w.WriteHeader(http.StatusAccepted)
-	w.Write([]byte("Board deleted successfully!"))
+	// 3. Share the NEWS!
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]any{
+		"message":          "Board deleted successfully",
+		"deleted_board_id": boardID,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *BoardHandler) GetBoard(w http.ResponseWriter, r *http.Request) {
@@ -90,14 +127,14 @@ func (h *BoardHandler) GetBoard(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id_key").(int)
 	boardID, err := strconv.Atoi(r.PathValue("boardID"))
 	if err != nil {
-		http.Error(w, "Improper Board ID", http.StatusBadRequest)
+		utils.SendJSONError(w, "Improper Board ID", http.StatusBadRequest)
 		return
 	}
 
 	// 2. get the board
 	board, err := h.BoardModel.GetBoard(boardID, userID)
 	if err != nil {
-		http.Error(w, "Board Not Found", http.StatusNotFound)
+		utils.SendJSONError(w, "Board Not Found", http.StatusNotFound)
 		return
 	}
 
@@ -105,8 +142,7 @@ func (h *BoardHandler) GetBoard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(board)
 	if err != nil {
-		// If encoding fails (rare, but good to handle)
-		http.Error(w, "Error formatting response", http.StatusInternalServerError)
+		utils.SendJSONError(w, "Error formatting response", http.StatusInternalServerError)
 		return
 	}
 }

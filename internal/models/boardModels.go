@@ -84,7 +84,8 @@ func (m *BoardModel) GetBoard(boardID, userID int) (*Board, error) {
 							json_object(
 								'id', cards.id,
 								'title', cards.title,
-								'position', cards.position
+								'position', cards.position,
+								'body', cards.body
 							)
 						)
 						FROM cards
