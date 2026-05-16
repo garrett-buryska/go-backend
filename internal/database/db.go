@@ -61,6 +61,8 @@ func createTables(db *sql.DB) error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		user_id INTEGER NOT NULL,
 		title TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 	);
 	
@@ -84,6 +86,61 @@ func createTables(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_boards_user_id ON boards(user_id);
 	CREATE INDEX IF NOT EXISTS idx_columns_board_id ON columns(board_id);
 	CREATE INDEX IF NOT EXISTS idx_cards_column_id ON cards(column_id);
+
+	CREATE TRIGGER IF NOT EXISTS update_board_timestamp
+	AFTER UPDATE ON boards
+	FOR EACH ROW
+	BEGIN
+		UPDATE boards SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS update_board_on_column_insert
+	AFTER INSERT ON columns
+	FOR EACH ROW
+	BEGIN
+		UPDATE boards SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.board_id;
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS update_board_on_column_update
+	AFTER UPDATE ON columns
+	FOR EACH ROW
+	BEGIN
+		UPDATE boards SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.board_id;
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS update_board_on_column_delete
+	AFTER DELETE ON columns
+	FOR EACH ROW
+	BEGIN
+		UPDATE boards SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.board_id;
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS update_board_on_card_insert
+	AFTER INSERT ON cards
+	FOR EACH ROW
+	BEGIN
+		UPDATE boards 
+		SET updated_at = CURRENT_TIMESTAMP 
+		WHERE id = (SELECT board_id FROM columns WHERE id = NEW.column_id);
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS update_board_on_card_update
+	AFTER UPDATE ON cards
+	FOR EACH ROW
+	BEGIN
+		UPDATE boards 
+		SET updated_at = CURRENT_TIMESTAMP 
+		WHERE id = (SELECT board_id FROM columns WHERE id = NEW.column_id);
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS update_board_on_card_delete
+	AFTER DELETE ON cards
+	FOR EACH ROW
+	BEGIN
+		UPDATE boards 
+		SET updated_at = CURRENT_TIMESTAMP 
+		WHERE id = (SELECT board_id FROM columns WHERE id = OLD.column_id);
+	END;
 	`
 
 	_, err := db.Exec(query)

@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 )
 
 type Board struct {
-	ID      int      `json:"id"`
-	UserID  int      `json:"user_id"`
-	Title   string   `json:"title"`
-	Columns []Column `json:"columns"`
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	Title     string    `json:"title"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Columns   []Column  `json:"columns"`
 }
 
 type BoardModel struct {
@@ -120,7 +123,7 @@ func (m *BoardModel) GetBoard(boardID, userID int) (*Board, error) {
 
 // Add this right below your GetBoard method
 func (m *BoardModel) GetAllForUser(userID int) ([]Board, error) {
-	query := `SELECT id, title FROM boards WHERE user_id = ? ORDER BY id DESC`
+	query := `SELECT id, title, created_at, updated_at FROM boards WHERE user_id = ? ORDER BY id DESC`
 
 	rows, err := m.DB.Query(query, userID)
 	if err != nil {
@@ -131,7 +134,7 @@ func (m *BoardModel) GetAllForUser(userID int) ([]Board, error) {
 	var boards []Board
 	for rows.Next() {
 		var b Board
-		if err := rows.Scan(&b.ID, &b.Title); err != nil {
+		if err := rows.Scan(&b.ID, &b.Title, &b.CreatedAt, &b.UpdatedAt); err != nil {
 			return nil, err
 		}
 		boards = append(boards, b)
