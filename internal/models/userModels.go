@@ -5,17 +5,13 @@ import (
 	"errors"
 )
 
-// ErrNoRecord is a custom error so your HTTP handlers know when a user wasn't found
-var ErrNoRecord = errors.New("models: no matching record found")
-
 // User represents the data structure of our database row
 type User struct {
-	ID             int            `json:"id"`
-	Username       string         `json:"username"`
-	HashedPassword string         `json:"-"` // The "-" prevents the password from EVER leaking in JSON
-	Email          string         `json:"email"`
-	SessionToken   sql.NullString `json:"-"` // sql.NullString handles NULL values in the DB (like when logged out)
-	CSRFToken      sql.NullString `json:"-"`
+	ID             int     `json:"id"`
+	Username       string  `json:"username"`
+	HashedPassword string  `json:"-"` // The "-" prevents the password from EVER leaking in JSON
+	SessionToken   *string `json:"-"` // sql.NullString handles NULL values in the DB (like when logged out)
+	CSRFToken      *string `json:"-"`
 }
 
 // UserModel wraps the database connection pool
@@ -23,11 +19,11 @@ type UserModel struct {
 	DB *sql.DB
 }
 
-func (m *UserModel) Insert(username, hashedPassword string, email string) (int, error) {
-	query := `INSERT INTO users (username, hashed_password, email) VALUES (?, ?, ?) RETURNING id;`
+func (m *UserModel) Insert(username, hashedPassword string) (int, error) {
+	query := `INSERT INTO users (username, hashed_password) VALUES (?, ?) RETURNING id;`
 
 	var id int
-	err := m.DB.QueryRow(query, username, hashedPassword, email).Scan(&id)
+	err := m.DB.QueryRow(query, username, hashedPassword).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -42,7 +38,7 @@ func (m *UserModel) GetByUsername(username string) (*User, error) {
 	err := m.DB.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.HashedPassword)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNoRecord
+			return nil, errors.New("models: no matching record found")
 		}
 		return nil, err
 	}
@@ -58,13 +54,13 @@ func (m *UserModel) UpdateSession(userID int, sessionToken *string, csrfToken *s
 }
 
 func (m *UserModel) GetBySession(sessionToken string, csrfToken string) (*User, error) {
-	query := `SELECT id FROM users WHERE session_token = ? AND csrf_token = ?`
+	query := `SELECT id, username FROM users WHERE session_token = ? AND csrf_token = ?`
 
 	var user User
-	err := m.DB.QueryRow(query, sessionToken, csrfToken).Scan(&user.ID)
+	err := m.DB.QueryRow(query, sessionToken, csrfToken).Scan(&user.ID, &user.Username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNoRecord
+			return nil, errors.New("models: no matching record found")
 		}
 		return nil, err
 	}
