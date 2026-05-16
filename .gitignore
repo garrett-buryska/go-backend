@@ -1,5 +1,5 @@
 # The compiled binary
-go-backend
+my-backend
 
 # The entire data directory (easier than listing files individually)
 data/

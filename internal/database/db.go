@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // InitDB opens a database connection, applies performance settings,
@@ -17,7 +17,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	// Format the DSN with query parameters for the go-sqlite3 driver
 	dsn := fmt.Sprintf("%s?_journal=WAL&_fk=1&_busy_timeout=5000&_sync=NORMAL", dbPath)
 
-	db, err := sql.Open("sqlite3", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}

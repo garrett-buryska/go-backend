@@ -19,8 +19,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		// 2. Allow local React/Vite dev servers (Add your production domain here later!)
 		allowedOrigins := map[string]bool{
-			"http://localhost:3000": true, // Standard React app
-			"http://localhost:5173": true, // Vite app
+			"http://localhost:3000":                 true, // Standard React app
+			"http://localhost:5173":                 true, // Vite app
+			"https://cardboard.garrettburyska.work": true,
 		}
 
 		if allowedOrigins[origin] {

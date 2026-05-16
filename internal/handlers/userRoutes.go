@@ -109,6 +109,9 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(24 * time.Hour),
 		HttpOnly: true,
 		Path:     "/",
+		Secure:   true,                  // CRITICAL for cross-site/HTTPS
+		SameSite: http.SameSiteNoneMode, // CRITICAL for cross-site/HTTPS
+		Domain:   ".garrettburyska.work",
 	})
 
 	http.SetCookie(w, &http.Cookie{
@@ -117,6 +120,9 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(24 * time.Hour),
 		HttpOnly: false,
 		Path:     "/",
+		Secure:   true,                  // CRITICAL for cross-site/HTTPS
+		SameSite: http.SameSiteNoneMode, // CRITICAL for cross-site/HTTPS
+		Domain:   ".garrettburyska.work",
 	})
 
 	// 8. Share the NEWS!
@@ -163,6 +169,9 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(-time.Hour),
 		HttpOnly: true,
 		Path:     "/",
+		Secure:   true,                  // CRITICAL for cross-site/HTTPS
+		SameSite: http.SameSiteNoneMode, // CRITICAL for cross-site/HTTPS
+		Domain:   ".garrettburyska.work",
 	})
 
 	http.SetCookie(w, &http.Cookie{
@@ -171,6 +180,9 @@ func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(-time.Hour),
 		HttpOnly: false,
 		Path:     "/",
+		Secure:   true,                  // CRITICAL for cross-site/HTTPS
+		SameSite: http.SameSiteNoneMode, // CRITICAL for cross-site/HTTPS
+		Domain:   ".garrettburyska.work",
 	})
 
 	// 6. Share the NEWS!
